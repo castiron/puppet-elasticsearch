@@ -216,7 +216,7 @@ class elasticsearch::params {
       $service_pattern    = $service_name
       $defaults_location  = '/etc/default'
 
-      if versioncmp($::operatingsystemmajrelease, '15') >= 0 {
+      if versioncmp($::operatingsystemrelease, '15') >= 0 {
         $init_template        = 'elasticsearch.systemd.erb'
         $service_providers    = 'systemd'
         $systemd_service_path = '/lib/systemd/system'
