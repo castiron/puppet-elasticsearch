@@ -1,6 +1,5 @@
 # Elasticsearch Puppet Module
 
-[![Build Status](https://travis-ci.org/elastic/puppet-elasticsearch.svg?branch=master)](https://travis-ci.org/elastic/puppet-elasticsearch)
 [![Puppet Forge endorsed](https://img.shields.io/puppetforge/e/elasticsearch/elasticsearch.svg)](https://forge.puppetlabs.com/elasticsearch/elasticsearch)
 [![Puppet Forge Version](https://img.shields.io/puppetforge/v/elasticsearch/elasticsearch.svg)](https://forge.puppetlabs.com/elasticsearch/elasticsearch)
 [![Puppet Forge Downloads](https://img.shields.io/puppetforge/dt/elasticsearch/elasticsearch.svg)](https://forge.puppetlabs.com/elasticsearch/elasticsearch)
@@ -22,7 +21,7 @@
 
 This module sets up [Elasticsearch](https://www.elastic.co/overview/elasticsearch/) instances with additional resource for plugins, templates, and more.
 
-This module has been tested against all versions of ES 1.x and 2.x.
+This module has been tested against Elasticsearch 1.x, 2.x, and 5.x.
 
 ## Setup
 
@@ -34,7 +33,7 @@ This module has been tested against all versions of ES 1.x and 2.x.
 * Elasticsearch service.
 * Elasticsearch plugins.
 * Elasticsearch templates.
-* Elasticsearch Shield users, roles, and certificates.
+* Elasticsearch Shield/X-Pack users, roles, and certificates.
 
 ### Requirements
 
@@ -43,7 +42,7 @@ This module has been tested against all versions of ES 1.x and 2.x.
 * [richardc/datacat](https://forge.puppetlabs.com/richardc/datacat)
 * [Augeas](http://augeas.net/)
 * [puppetlabs-java](https://forge.puppetlabs.com/puppetlabs/java) for Java installation (optional).
-* [puppetlabs-java_ks](https://forge.puppetlabs.com/puppetlabs/java_ks) for Shield certificate management (optional).
+* [puppetlabs-java_ks](https://forge.puppetlabs.com/puppetlabs/java_ks) for Shield/X-Pack certificate management (optional).
 
 #### Repository management
 
@@ -60,11 +59,15 @@ Declare the top-level `elasticsearch` class (managing repositories) and set up a
 class { 'elasticsearch':
   java_install => true,
   manage_repo  => true,
-  repo_version => '2.x',
+  repo_version => '5.x',
 }
 
 elasticsearch::instance { 'es-01': }
 ```
+
+**Note**: Elasticsearch 5.x requires a recent version of the JVM.
+If you are on a recent version of your distribution of choice (such as Ubuntu 16.04 or CentOS 7), setting `java_install => true` will work out-of-the-box.
+If you are on an earlier distribution, you may need to take additional measures to install Java 1.8.
 
 ## Usage
 
@@ -416,6 +419,17 @@ class { 'elasticsearch':
 }
 ```
 
+When configuring Elasticsearch's memory usage, you can do so by either changing init defaults for Elasticsearch 1.x/2.x (see the [following example](#hash-representation)), or modify it globally in 5.x using `jvm.options`:
+
+```puppet
+class { 'elasticsearch':
+  jvm_options => [
+    '-Xms4g',
+    '-Xmx4g'
+  ]
+}
+```
+
 ### Service management
 
 Currently only the basic SysV-style [init](https://en.wikipedia.org/wiki/Init) and [Systemd](http://en.wikipedia.org/wiki/Systemd) service providers are supported, but other systems could be implemented as necessary (pull requests welcome).
@@ -448,40 +462,69 @@ Note: `init_defaults` hash can be passed to the main class and to the instance.
 
 ## Advanced features
 
-### Shield
+### X-Pack/Shield
 
-[Shield](https://www.elastic.co/products/shield) users, roles, and certificates can be managed by this module.
+[X-Pack](https://www.elastic.co/products/x-pack) and [Shield](https://www.elastic.co/products/shield) file-based users, roles, and certificates can be managed by this module.
 
 **Note**: If you are planning to use these features, it is *highly recommended* you read the following documentation to understand the caveats and extent of the resources available to you.
 
 #### Getting Started
 
-Although this module can handle several types of Shield resources, you are expected to manage the plugin installation and versions for your deployment.
-For example, the following manifest will install Elasticseach with a single instance running shield:
+Although this module can handle several types of Shield/X-Pack resources, you are expected to manage the plugin installation and versions for your deployment.
+For example, the following manifest will install Elasticseach with a single instance running X-Pack:
 
 ```puppet
 class { 'elasticsearch':
-  java_install => true,
-  manage_repo  => true,
-  repo_version => '1.7',
+  java_install    => true,
+  manage_repo     => true,
+  repo_version    => '5.x',
+  security_plugin => 'x-pack',
+}
+
+elasticsearch::instance { 'es-01': }
+elasticsearch::plugin { 'x-pack': instances => 'es-01' }
+```
+
+The following manifest will do the same, but with Shield:
+
+```puppet
+class { 'elasticsearch':
+  java_install    => true,
+  manage_repo     => true,
+  repo_version    => '2.x',
+  security_plugin => 'shield',
 }
 
 elasticsearch::instance { 'es-01': }
 
 Elasticsearch::Plugin { instances => ['es-01'], }
-elasticsearch::plugin { 'elasticsearch/license/latest': }
-elasticsearch::plugin { 'elasticsearch/shield/latest': }
+elasticsearch::plugin { 'license': }
+elasticsearch::plugin { 'shield': }
 ```
 
 The following examples will assume the preceding resources are part of your puppet manifest.
 
 #### Roles
 
-Roles in the `esusers` realm can be managed using the `elasticsearch::shield::role` type.
-For example, to create a role called `myrole`, you could use the following resource:
+Roles in the file realm (the `esusers` realm in Shield) can be managed using the `elasticsearch::role` type.
+For example, to create a role called `myrole`, you could use the following resource in X-Pack:
 
 ```puppet
-elasticsearch::shield::role { 'myrole':
+elasticsearch::role { 'myrole':
+  privileges => {
+    'cluster' => 'monitor',
+    'indices' => [{
+      'names'      => [ '*' ],
+      'privileges' => [ 'read' ],
+    }]
+  }
+}
+```
+
+And in Shield:
+
+```puppet
+elasticsearch::role { 'myrole':
   privileges => {
     'cluster' => 'monitor',
     'indices' => {
@@ -492,24 +535,24 @@ elasticsearch::shield::role { 'myrole':
 ```
 
 This role would grant users access to cluster monitoring and read access to all indices.
-See the [Shield documentation](https://www.elastic.co/guide/en/shield/index.html) for your version to determine what `privileges` to use and how to format them (the Puppet hash representation will simply be translated into yaml.)
+See the [Shield](https://www.elastic.co/guide/en/shield/index.html) or [X-Pack](https://www.elastic.co/guide/en/x-pack/current/xpack-security.html) documentation for your version to determine what `privileges` to use and how to format them (the Puppet hash representation will simply be translated into yaml.)
 
-**Note**: The Puppet provider for `esusers` has fine-grained control over the `roles.yml` file and thus will leave the default roles Shield installs in-place.
+**Note**: The Puppet provider for `esusers`/`users` has fine-grained control over the `roles.yml` file and thus will leave the default roles Shield installs in-place.
 If you would like to explicitly purge the default roles (leaving only roles managed by puppet), you can do so by including the following in your manifest:
 
 ```puppet
-resources { 'elasticsearch_shield_role':
+resources { 'elasticsearch_role':
   purge => true,
 }
 ```
 
 ##### Mappings
 
-Associating mappings with a role is done by passing an array of strings to the `mappings` parameter of the `elasticsearch::shield::role` type.
-For example, to define a role with mappings using Shield >= 2.3.x style role definitions:
+Associating mappings with a role for file-based management is done by passing an array of strings to the `mappings` parameter of the `elasticsearch::role` type.
+For example, to define a role with mappings:
 
 ```puppet
-elasticsearch::shield::role { 'logstash':
+elasticsearch::role { 'logstash':
   mappings   => [
     'cn=group,ou=devteam',
   ],
@@ -527,45 +570,45 @@ elasticsearch::shield::role { 'logstash':
 }
 ```
 
-**Note**: Observe the brackets around `indices` in the preceding role definition; which is an array of hashes per the format in Shield 2.3.x. Follow the documentation to determine the correct formatting for your version of Shield.
+**Note**: Observe the brackets around `indices` in the preceding role definition; which is an array of hashes per the format in Shield 2.3.x. Follow the documentation to determine the correct formatting for your version of Shield or X-Pack.
 
 If you'd like to keep the mappings file purged of entries not under Puppet's control, you should use the following `resources` declaration because mappings are a separate low-level type:
 
 ```puppet
-resources { 'elasticsearch_shield_role_mapping':
+resources { 'elasticsearch_role_mapping':
   purge => true,
 }
 ```
 
 #### Users
 
-Users can be managed using the `elasticsearch::shield::user` type.
+Users can be managed using the `elasticsearch::user` type.
 For example, to create a user `mysuser` with membership in `myrole`:
 
 ```puppet
-elasticsearch::shield::user { 'myuser':
+elasticsearch::user { 'myuser':
   password => 'mypassword',
   roles    => ['myrole'],
 }
 ```
 
-The `password` parameter will also accept password hashes generated from the `esusers` utility and ensure the password is kept in-sync with the Shield `users` file for all Elasticsearch instances.
+The `password` parameter will also accept password hashes generated from the `esusers`/`users` utility and ensure the password is kept in-sync with the Shield `users` file for all Elasticsearch instances.
 
 ```puppet
-elasticsearch::shield::user { 'myuser':
+elasticsearch::user { 'myuser':
   password => '$2a$10$IZMnq6DF4DtQ9c4sVovgDubCbdeH62XncmcyD1sZ4WClzFuAdqspy',
   roles    => ['myrole'],
 }
 ```
 
-**Note**: When using the `esusers` provider (the default for plaintext passwords), Puppet has no way to determine whether the given password is in-sync with the password hashed by Shield.
-In order to work around this, the `elasticsearch::shield::user` resource has been designed to accept refresh events in order to update password values.
+**Note**: When using the `esusers`/`users` provider (the default for plaintext passwords), Puppet has no way to determine whether the given password is in-sync with the password hashed by Shield/X-Pack.
+In order to work around this, the `elasticsearch::user` resource has been designed to accept refresh events in order to update password values.
 This is not ideal, but allows you to instruct the resource to change the password when needed.
 For example, to update the aforementioned user's password, you could include the following your manifest:
 
 ```puppet
 notify { 'update password': } ~>
-elasticsearch::shield::user { 'myuser':
+elasticsearch::user { 'myuser':
   password => 'mynewpassword',
   roles    => ['myrole'],
 }
@@ -585,13 +628,13 @@ elasticsearch::instance { 'es-01':
 }
 ```
 
-**Note**: Setting up a proper CA and certificate infrastructure is outside the scope of this documentation, see the aforementioned Shield guide for more information regarding the generation of these certificate files.
+**Note**: Setting up a proper CA and certificate infrastructure is outside the scope of this documentation, see the aforementioned Shield or X-Pack guide for more information regarding the generation of these certificate files.
 
 The module will set up a keystore file for the node to use and set the relevant options in `elasticsearch.yml` to enable TLS/SSL using the certificates and key provided.
 
 #### System Keys
 
-Shield system keys can be passed to the module, where they will be placed into individual instance configuration directories.
+Shield/X-Pack system keys can be passed to the module, where they will be placed into individual instance configuration directories.
 This can be set at the `elasticsearch` class and inherited across all instances:
 
 ```puppet

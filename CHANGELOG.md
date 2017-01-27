@@ -1,10 +1,50 @@
 ## x.x.x (Month Day, Year)
 
 ### Summary
+
+#### Features
+* Support management of the global jvm.options configuration file.
+* X-Pack support added.
+* Restricted permissions to the elasticsearch.yml file.
+* Deprecation log configuration support added.
+
+#### Bugfixes
+* Fixed case in which index template could prepend an additional 'index.' to index settings.
+* Fixed a case in which dependency cycles could arise when pinning packages on CentOS.
+
+#### Changes
+* sysctl settings are no longer managed by the thias/sysctl module.
+* Calls to `elasticsearch -version` in elasticsearch::plugin code replaced with native Puppet code to resolve Elasticsearch package version. Should improve resiliency when managing plugins.
+
+#### Testing changes
+
+## 0.15.1 (December 1, 2016)
+
+### Summary
+Primarily a bugfix release for Elasticsearch 5.x support-related issues.
+Note updated minimum required puppet versions as well.
+
+#### Features
+
+#### Bugfixes
+* Removed ES_HEAP_SIZE check in init scripts for Elasticsearch 5.x
+* Changed sysctl value to a string to avoid type errors for some versions
+* Fixed a $LOAD_PATH error that appeared in some cases for puppet_x/elastic/es_versioning
+
+#### Changes
+* Updated minimium required version for Puppet and PE to reflect tested versions and versions supported by Puppet Labs
+
+#### Testing changes
+
+## 0.15.0 (November 17, 2016)
+
+### Summary
 * Support for Ubuntu Xenial (16.04) formally declared.
+* Initial support for running Elasticsearch 5.x series.
 
 #### Features
 * Support management of 5.x-style Elastic yum/apt package repositories.
+* Support service scripts for 5.x series of Elasticsearch
 
 #### Bugfixes
 * Update the apt::source call to not cause deprecation warnings

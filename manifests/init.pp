@@ -170,6 +170,11 @@
 # [*java_package*]
 #   If you like to install a custom java package, put the name here.
 #
+# [*jvm_options*]
+#   Array of options to set in jvm_options.
+#   Value type is Array
+#   Default value: []
+#
 # [*manage_repo*]
 #   Enable repo management by enabling our official repositories
 #
@@ -293,7 +298,7 @@
 #   Defaults to: undef
 #
 # [*system_key*]
-#   Source for the Shield system key. Valid values are any that are
+#   Source for the Shield/x-pack system key. Valid values are any that are
 #   supported for the file resource `source` parameter.
 #   Value type is string
 #   Default value: undef
@@ -318,6 +323,12 @@
 #   Max log file size when file_rolling_type is 'rollingFile'
 #   Value type is string
 #   Default value: 10MB
+#
+# [*security_plugin*]
+#   Which security plugin will be used to manage users, roles, and
+#   certificates. Valid values are 'shield' and 'x-pack'
+#   Value type is string
+#   Default value: undef
 #
 # The default values for the parameters are set in elasticsearch::params. Have
 # a look at the corresponding <tt>params.pp</tt> manifest file if you need more
@@ -375,6 +386,7 @@ class elasticsearch(
   $plugindir                      = $elasticsearch::params::plugindir,
   $java_install                   = false,
   $java_package                   = undef,
+  $jvm_options                    = [],
   $manage_repo                    = false,
   $repo_version                   = undef,
   $repo_priority                  = undef,
@@ -408,6 +420,7 @@ class elasticsearch(
   $daily_rolling_date_pattern     = $elasticsearch::params::daily_rolling_date_pattern,
   $rolling_file_max_backup_index  = $elasticsearch::params::rolling_file_max_backup_index,
   $rolling_file_max_file_size     = $elasticsearch::params::rolling_file_max_file_size,
+  $security_plugin                = undef,
 ) inherits elasticsearch::params {
 
   anchor {'elasticsearch::begin': }
@@ -429,13 +442,13 @@ class elasticsearch(
   }
 
   if ! ($file_rolling_type in [ 'dailyRollingFile', 'rollingFile']) {
-    file("\"${file_rolling_type}\" is not a valid type")
+    fail("\"${file_rolling_type}\" is not a valid type")
   }
 
+  validate_array($jvm_options)
   validate_integer($rolling_file_max_backup_index)
   validate_string($daily_rolling_date_pattern)
   validate_string($rolling_file_max_file_size)
-
 
   # restart on change
   validate_bool(
@@ -644,11 +657,6 @@ class elasticsearch(
       }
     }
 
-    if defined(Class['elasticsearch::package::pin']) {
-      Class['elasticsearch::package::pin']
-      -> Class['elasticsearch::repo']
-    }
-
   }
 
   #### Manage relationships
@@ -675,9 +683,9 @@ class elasticsearch(
     Class['elasticsearch::config']
     -> Elasticsearch::Instance <| |>
     Class['elasticsearch::config']
-    -> Elasticsearch::Shield::User <| |>
+    -> Elasticsearch::User <| |>
     Class['elasticsearch::config']
-    -> Elasticsearch::Shield::Role <| |>
+    -> Elasticsearch::Role <| |>
     Class['elasticsearch::config']
     -> Elasticsearch::Template <| |>
 
@@ -696,10 +704,10 @@ class elasticsearch(
     -> Elasticsearch::Instance <| |>
     -> Class['elasticsearch::config']
     Anchor['elasticsearch::begin']
-    -> Elasticsearch::Shield::User <| |>
+    -> Elasticsearch::User <| |>
     -> Class['elasticsearch::config']
     Anchor['elasticsearch::begin']
-    -> Elasticsearch::Shield::Role <| |>
+    -> Elasticsearch::Role <| |>
     -> Class['elasticsearch::config']
     Anchor['elasticsearch::begin']
     -> Elasticsearch::Template <| |>
@@ -707,37 +715,37 @@ class elasticsearch(
 
   }
 
-  # Install plugins before managing instances or shield users/roles
+  # Install plugins before managing instances or users/roles
   Elasticsearch::Plugin <| ensure == 'present' or ensure == 'installed' |>
   -> Elasticsearch::Instance <| |>
   Elasticsearch::Plugin <| ensure == 'present' or ensure == 'installed' |>
-  -> Elasticsearch::Shield::User <| |>
+  -> Elasticsearch::User <| |>
   Elasticsearch::Plugin <| ensure == 'present' or ensure == 'installed' |>
-  -> Elasticsearch::Shield::Role <| |>
+  -> Elasticsearch::Role <| |>
 
-  # Remove plugins after managing shield users/roles
-  Elasticsearch::Shield::User <| |>
+  # Remove plugins after managing users/roles
+  Elasticsearch::User <| |>
   -> Elasticsearch::Plugin <| ensure == 'absent' |>
-  Elasticsearch::Shield::Role <| |>
+  Elasticsearch::Role <| |>
   -> Elasticsearch::Plugin <| ensure == 'absent' |>
 
   # Ensure roles are defined before managing users that reference roles
-  Elasticsearch::Shield::Role <| |>
-  -> Elasticsearch::Shield::User <| ensure == 'present' |>
+  Elasticsearch::Role <| |>
+  -> Elasticsearch::User <| ensure == 'present' |>
   # Ensure users are removed before referenced roles are managed
-  Elasticsearch::Shield::User <| ensure == 'absent' |>
-  -> Elasticsearch::Shield::Role <| |>
+  Elasticsearch::User <| ensure == 'absent' |>
+  -> Elasticsearch::Role <| |>
 
   # Ensure users and roles are managed before calling out to templates
-  Elasticsearch::Shield::Role <| |>
+  Elasticsearch::Role <| |>
   -> Elasticsearch::Template <| |>
-  Elasticsearch::Shield::User <| |>
+  Elasticsearch::User <| |>
   -> Elasticsearch::Template <| |>
 
-  # Manage users/roles before instances (req'd to keep shield dir in sync)
-  Elasticsearch::Shield::Role <| |>
+  # Manage users/roles before instances (req'd to keep dir in sync)
+  Elasticsearch::Role <| |>
   -> Elasticsearch::Instance <| |>
-  Elasticsearch::Shield::User <| |>
+  Elasticsearch::User <| |>
   -> Elasticsearch::Instance <| |>
 
   # Ensure instances are started before managing templates

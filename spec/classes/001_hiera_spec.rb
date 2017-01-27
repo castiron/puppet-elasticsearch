@@ -38,9 +38,11 @@ describe 'elasticsearch', :type => 'class' do
         it { should contain_file('/etc/elasticsearch/es-01').with(:ensure => 'directory') }
         it { should contain_file('/etc/elasticsearch/es-01/elasticsearch.yml') }
         it { should contain_file('/etc/elasticsearch/es-01/logging.yml') }
+        it { should contain_file('/etc/elasticsearch/es-01/log4j2.properties') }
         it { should contain_exec('mkdir_logdir_elasticsearch_es-01').with(:command => 'mkdir -p /var/log/elasticsearch/es-01') }
         it { should contain_exec('mkdir_datadir_elasticsearch_es-01').with(:command => 'mkdir -p /usr/share/elasticsearch/data/es-01') }
         it { should contain_file('/usr/share/elasticsearch/data/es-01') }
+        it { should contain_elasticsearch_service_file('/etc/init.d/elasticsearch-es-01') }
         it { should contain_file('/etc/init.d/elasticsearch-es-01') }
         it { should contain_file('/etc/elasticsearch/es-01/scripts').with(:target => '/usr/share/elasticsearch/scripts') }
         it { should contain_datacat_fragment('main_config_es-01') }
@@ -66,10 +68,12 @@ describe 'elasticsearch', :type => 'class' do
         it { should contain_file('/etc/elasticsearch/es-01').with(:ensure => 'directory') }
         it { should contain_file('/etc/elasticsearch/es-01/elasticsearch.yml') }
         it { should contain_file('/etc/elasticsearch/es-01/logging.yml') }
+        it { should contain_file('/etc/elasticsearch/es-01/log4j2.properties') }
         it { should contain_exec('mkdir_logdir_elasticsearch_es-01') }
         it { should contain_exec('mkdir_datadir_elasticsearch_es-01') }
         it { should contain_file('/usr/share/elasticsearch/data/es-01') }
         it { should contain_file('/var/log/elasticsearch/es-01') }
+        it { should contain_elasticsearch_service_file('/etc/init.d/elasticsearch-es-01') }
         it { should contain_file('/etc/init.d/elasticsearch-es-01') }
         it { should contain_file('/etc/elasticsearch/es-01/scripts').with(:target => '/usr/share/elasticsearch/scripts') }
         it { should contain_datacat_fragment('main_config_es-01') }
@@ -85,13 +89,14 @@ describe 'elasticsearch', :type => 'class' do
         it { should contain_file('/etc/elasticsearch/es-02').with(:ensure => 'directory') }
         it { should contain_file('/etc/elasticsearch/es-02/elasticsearch.yml') }
         it { should contain_file('/etc/elasticsearch/es-02/logging.yml') }
+        it { should contain_file('/etc/elasticsearch/es-02/log4j2.properties') }
         it { should contain_exec('mkdir_logdir_elasticsearch_es-02') }
         it { should contain_exec('mkdir_datadir_elasticsearch_es-02') }
         it { should contain_file('/usr/share/elasticsearch/data/es-02') }
         it { should contain_file('/var/log/elasticsearch/es-02') }
+        it { should contain_elasticsearch_service_file('/etc/init.d/elasticsearch-es-02') }
         it { should contain_file('/etc/init.d/elasticsearch-es-02') }
         it { should contain_file('/etc/elasticsearch/es-02/scripts').with(:target => '/usr/share/elasticsearch/scripts') }
-        it { should contain_file('/etc/elasticsearch/es-02/shield') }
         it { should contain_datacat_fragment('main_config_es-02') }
         it { should contain_datacat('/etc/elasticsearch/es-02/elasticsearch.yml') }
 
@@ -169,13 +174,14 @@ describe 'elasticsearch', :type => 'class' do
       it { should contain_file('/etc/elasticsearch/default').with(:ensure => 'directory') }
       it { should contain_file('/etc/elasticsearch/default/elasticsearch.yml') }
       it { should contain_file('/etc/elasticsearch/default/logging.yml') }
+      it { should contain_file('/etc/elasticsearch/default/log4j2.properties') }
       it { should contain_exec('mkdir_logdir_elasticsearch_default') }
       it { should contain_exec('mkdir_datadir_elasticsearch_default') }
       it { should contain_file('/usr/share/elasticsearch/data/default') }
       it { should contain_file('/var/log/elasticsearch/default') }
+      it { should contain_elasticsearch_service_file('/etc/init.d/elasticsearch-default') }
       it { should contain_file('/etc/init.d/elasticsearch-default') }
       it { should contain_file('/etc/elasticsearch/default/scripts').with(:target => '/usr/share/elasticsearch/scripts') }
-      it { should contain_file('/etc/elasticsearch/default/shield') }
       it { should contain_datacat_fragment('main_config_default') }
       it { should contain_datacat('/etc/elasticsearch/default/elasticsearch.yml') }
 
@@ -189,10 +195,12 @@ describe 'elasticsearch', :type => 'class' do
       it { should contain_file('/etc/elasticsearch/es-01').with(:ensure => 'directory') }
       it { should contain_file('/etc/elasticsearch/es-01/elasticsearch.yml') }
       it { should contain_file('/etc/elasticsearch/es-01/logging.yml') }
+      it { should contain_file('/etc/elasticsearch/es-01/log4j2.properties') }
       it { should contain_exec('mkdir_logdir_elasticsearch_es-01').with(:command => 'mkdir -p /var/log/elasticsearch/es-01') }
       it { should contain_exec('mkdir_datadir_elasticsearch_es-01').with(:command => 'mkdir -p /usr/share/elasticsearch/data/es-01') }
       it { should contain_file('/usr/share/elasticsearch/data/es-01') }
       it { should contain_file('/var/log/elasticsearch/es-01') }
+      it { should contain_elasticsearch_service_file('/etc/init.d/elasticsearch-es-01') }
       it { should contain_file('/etc/init.d/elasticsearch-es-01') }
       it { should contain_file('/etc/elasticsearch/es-01/scripts').with(:target => '/usr/share/elasticsearch/scripts') }
       it { should contain_datacat_fragment('main_config_es-01') }

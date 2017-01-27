@@ -1,8 +1,7 @@
 require 'spec_helper_acceptance'
-require 'spec_helper_faraday'
 require 'json'
 
-describe "elasticsearch shield" do
+describe "elasticsearch shield", :with_certificates, :then_purge do
 
   # Template manifest
   let :base_manifest do <<-EOF
@@ -15,6 +14,7 @@ describe "elasticsearch shield" do
         'http.port' => #{test_settings['port_a']},
       },
       restart_on_change => true,
+      security_plugin => 'shield',
     }
 
     elasticsearch::plugin { 'elasticsearch/license/latest' :  }
@@ -32,12 +32,12 @@ describe "elasticsearch shield" do
 
           Elasticsearch::Plugin { instances => ['es-01'],  }
 
-          elasticsearch::shield::user { '#{test_settings['shield_user']}':
-            password => '#{test_settings['shield_password']}',
+          elasticsearch::user { '#{test_settings['security_user']}':
+            password => '#{test_settings['security_password']}',
             roles    => ['admin'],
           }
-          elasticsearch::shield::user { '#{test_settings['shield_user']}pwchange':
-            password => '#{test_settings['shield_hashed_password']}',
+          elasticsearch::user { '#{test_settings['security_user']}pwchange':
+            password => '#{test_settings['security_hashed_password']}',
             roles    => ['admin'],
           }
         EOF
@@ -61,8 +61,7 @@ describe "elasticsearch shield" do
 
     describe server :container do
       describe http(
-        "http://localhost:#{test_settings['port_a']}/_cluster/health",
-        :faraday_middleware => middleware
+        "http://localhost:#{test_settings['port_a']}/_cluster/health"
       ) do
         it 'denies unauthorized access', :with_retries do
           expect(response.status).to eq(401)
@@ -72,10 +71,9 @@ describe "elasticsearch shield" do
       describe http(
         "http://localhost:#{test_settings['port_a']}/_cluster/health",
         {
-          :faraday_middleware => middleware,
           :basic_auth => [
-            test_settings['shield_user'],
-            test_settings['shield_password']
+            test_settings['security_user'],
+            test_settings['security_password']
           ]
         }
       ) do
@@ -87,10 +85,9 @@ describe "elasticsearch shield" do
       describe http(
         "http://localhost:#{test_settings['port_a']}/_cluster/health",
         {
-          :faraday_middleware => middleware,
           :basic_auth => [
-            "#{test_settings['shield_user']}pwchange",
-            test_settings['shield_hashed_plaintext']
+            "#{test_settings['security_user']}pwchange",
+            test_settings['security_hashed_plaintext']
           ]
         }
       ) do
@@ -112,8 +109,8 @@ describe "elasticsearch shield" do
           Elasticsearch::Plugin { instances => ['es-01'],  }
 
           notify { 'change password' : } ~>
-          elasticsearch::shield::user { '#{test_settings['shield_user']}pwchange':
-            password => '#{test_settings['shield_password'][0..5]}',
+          elasticsearch::user { '#{test_settings['security_user']}pwchange':
+            password => '#{test_settings['security_password'][0..5]}',
             roles    => ['admin'],
           }
         EOF
@@ -132,10 +129,9 @@ describe "elasticsearch shield" do
       describe http(
         "http://localhost:#{test_settings['port_a']}/_cluster/health",
         {
-          :faraday_middleware => middleware,
           :basic_auth => [
-            "#{test_settings['shield_user']}pwchange",
-            test_settings['shield_password'][0..5]
+            "#{test_settings['security_user']}pwchange",
+            test_settings['security_password'][0..5]
           ]
         }
       ) do
@@ -157,7 +153,7 @@ describe "elasticsearch shield" do
           Elasticsearch::Plugin { instances => ['es-01'],  }
 
 
-          elasticsearch::shield::role { '#{@role}':
+          elasticsearch::role { '#{@role}':
             privileges => {
               'cluster' => [
                 'cluster:monitor/health',
@@ -165,8 +161,8 @@ describe "elasticsearch shield" do
             }
           }
 
-          elasticsearch::shield::user { '#{test_settings['shield_user']}':
-            password => '#{test_settings['shield_password']}',
+          elasticsearch::user { '#{test_settings['security_user']}':
+            password => '#{test_settings['security_password']}',
             roles    => ['#{@role}'],
           }
         EOF
@@ -192,10 +188,9 @@ describe "elasticsearch shield" do
       describe http(
         "http://localhost:#{test_settings['port_a']}/_cluster/stats",
         {
-          :faraday_middleware => middleware,
           :basic_auth => [
-            test_settings['shield_user'],
-            test_settings['shield_password']
+            test_settings['security_user'],
+            test_settings['security_password']
           ]
         }
       ) do
@@ -207,10 +202,9 @@ describe "elasticsearch shield" do
       describe http(
         "http://localhost:#{test_settings['port_a']}/_cluster/health",
         {
-          :faraday_middleware => middleware,
           :basic_auth => [
-            test_settings['shield_user'],
-            test_settings['shield_password']
+            test_settings['security_user'],
+            test_settings['security_password']
           ]
         }
       ) do
@@ -239,8 +233,8 @@ describe "elasticsearch shield" do
 
             Elasticsearch::Plugin { instances => ['es-01'],  }
 
-            elasticsearch::shield::user { '#{test_settings['shield_user']}':
-              password => '#{test_settings['shield_password']}',
+            elasticsearch::user { '#{test_settings['security_user']}':
+              password => '#{test_settings['security_password']}',
               roles => ['admin'],
             }
           EOF
@@ -266,10 +260,9 @@ describe "elasticsearch shield" do
         describe http(
           "https://localhost:#{test_settings['port_a']}/_cluster/health",
           {
-            :faraday_middleware => middleware,
             :basic_auth => [
-              test_settings['shield_user'],
-              test_settings['shield_password']
+              test_settings['security_user'],
+              test_settings['security_password']
             ],
             :ssl => {:verify => false}
           }
@@ -287,8 +280,8 @@ describe "elasticsearch shield" do
 
         let :multi_manifest do
           base_manifest + %Q{
-            elasticsearch::shield::user { '#{test_settings['shield_user']}':
-              password => '#{test_settings['shield_password']}',
+            elasticsearch::user { '#{test_settings['security_user']}':
+              password => '#{test_settings['security_password']}',
               roles => ['admin'],
             }
           } + @tls[:clients].each_with_index.map do |cert, i|
@@ -335,10 +328,9 @@ describe "elasticsearch shield" do
         describe http(
           "https://localhost:#{test_settings['port_a']}/_nodes",
           {
-            :faraday_middleware => middleware,
             :basic_auth => [
-              test_settings['shield_user'],
-              test_settings['shield_password']
+              test_settings['security_user'],
+              test_settings['security_password']
             ],
             :ssl => {:verify => false}
           }
@@ -370,23 +362,6 @@ describe "elasticsearch shield" do
 
       it 'should apply cleanly' do
         apply_manifest removal_manifest, :catch_failures => true
-      end
-    end
-  end
-
-  # Boilerplate for shield setup
-  before :all do
-
-    @keystore_password = SecureRandom.hex
-    @role = [*('a'..'z')].sample(8).join
-
-    # Setup TLS cert placement
-    @tls = gen_certs(2, '/tmp')
-
-    create_remote_file hosts, @tls[:ca][:cert][:path], @tls[:ca][:cert][:pem]
-    @tls[:clients].each do |node|
-      node.each do |type, params|
-        create_remote_file hosts, params[:path], params[:pem]
       end
     end
   end

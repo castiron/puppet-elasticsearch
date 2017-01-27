@@ -21,19 +21,6 @@ describe 'elasticsearch', :type => 'class' do
         default_params
       end
 
-      context 'ordered with package pinning' do
-
-        let :params do
-          default_params
-        end
-
-        it { should contain_class(
-          'elasticsearch::package::pin'
-        ).that_comes_before(
-          'Class[elasticsearch::repo]'
-        ) }
-      end
-
       context "Use anchor type for ordering" do
 
         let :params do
@@ -168,6 +155,7 @@ describe 'elasticsearch', :type => 'class' do
           it { should contain_apt__source('elasticsearch')
             .with_location('https://artifacts.elastic.co/packages/5.x/apt') }
         when 'RedHat'
+          it { should contain_yum__versionlock('0:elasticsearch-5.0.0-1.noarch') }
           it { should contain_yumrepo('elasticsearch')
             .with_baseurl('https://artifacts.elastic.co/packages/5.x/yum') }
         when 'Suse'
